@@ -1,0 +1,798 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cityworks Infrastructure
+Parameters:
+  AppServerInstanceType:
+    Type: String
+    Description: The EC2 instance type for the Cityworks app server.
+    Default: m4.large
+    AllowedValues:
+    - t2.nano
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    - t2.xlarge
+    - t2.2xlarge
+    - m4.large
+    - m4.xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.10xlarge
+    - m4.16xlarge
+    - m5.large
+    - m5.xlarge
+    - m5.2xlarge
+    - m5.4xlarge
+    - m5.12xlarge
+    - m5.24xlarge
+    - c4.large
+    - c4.xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - c5.large
+    - c5.xlarge
+    - c5.2xlarge
+    - c5.4xlarge
+    - c5.9xlarge
+    - c5.18xlarge
+    - r4.large
+    - r4.xlarge
+    - r4.2xlarge
+    - r4.4xlarge
+    - r4.8xlarge
+    - r4.16xlarge
+    - x1.16xlarge
+    - x1.32xlarge
+    - x1e.xlarge
+    - x1e.2xlarge
+    - x1e.4xlarge
+    - x1e.8xlarge
+    - x1e.16xlarge
+    - x1e.32xlarge
+    - d2.xlarge
+    - d2.2xlarge
+    - d2.4xlarge
+    - d2.8xlarge
+    - h1.2xlarge
+    - h1.4xlarge
+    - h1.8xlarge
+    - h1.16xlarge
+    - i3.large
+    - i3.xlarge
+    - i3.2xlarge
+    - i3.4xlarge
+    - i3.8xlarge
+    - i3.16xlarge
+    - f1.2xlarge
+    - f1.16xlarge
+    - g3.4xlarge
+    - g3.8xlarge
+    - g3.16xlarge
+    - p2.xlarge
+    - p2.8xlarge
+    - p2.16xlarge
+    - p3.2xlarge
+    - p3.8xlarge
+    - p3.16xlarge
+    ConstraintDescription: Must be a valid EC2 instance type.
+  WindowsAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base
+    Description: The Windows AMI ID. Don't modify to use the lastest AMI.
+  KeyPairName:
+    Type: String
+    Default: cw-key
+    Description: Type the name of a Key Pair that exists or that you want to be created.
+    AllowedPattern: (^(?!(?i)aws|ssm)[a-zA-Z0-9_.-]+$)
+    ConstraintDescription: Can contain a mix of letters, numbers and the following 3 symbols .-_ and can't start with aws or ssm.
+  KeyPairState:
+    Type: String
+    Default: create
+    Description: Does the Key Pair already exist or should it be created?
+    AllowedValues:
+    - create
+    - preexisting
+  MasterUser:
+    Type: String
+    Default: cityworks
+    Description: Master database user.
+    MinLength: '1'
+    MaxLength: '128'
+    AllowedPattern: (?=^(?!(?i)ADD$|EXTERNAL$|PROCEDUREALL$|FETCH$|PUBLICALTER$|FILE$|RAISERRORAND$|FILLFACTOR$|READANY$|FOR$|READTEXTAS$|FOREIGN$|RECONFIGUREASC$|FREETEXT$|REFERENCESAUTHORIZATION$|FREETEXTTABLE$|REPLICATIONBACKUP$|FROM$|RESTOREBEGIN$|FULL$|RESTRICTBETWEEN$|FUNCTION$|RETURNBREAK$|GOTO$|REVERTBROWSE$|GRANT$|REVOKEBULK$|GROUP$|RIGHTBY$|HAVING$|ROLLBACKCASCADE$|HOLDLOCK$|ROWCOUNTCASE$|IDENTITY$|ROWGUIDCOLCHECK$|IDENTITY_INSERT$|RULECHECKPOINT$|IDENTITYCOL$|SAVECLOSE$|IF$|SCHEMACLUSTERED$|IN$|SECURITYAUDITCOALESCE$|INDEX$|SELECTCOLLATE$|INNER$|SEMANTICKEYPHRASETABLECOLUMN$|INSERT$|SEMANTICSIMILARITYDETAILSTABLECOMMIT$|INTERSECT$|SEMANTICSIMILARITYTABLECOMPUTE$|INTO$|SESSION_USERCONSTRAINT$|IS$|SETCONTAINS$|JOIN$|SETUSERCONTAINSTABLE$|KEY$|SHUTDOWNCONTINUE$|KILL$|SOMECONVERT$|LEFT$|STATISTICSCREATE$|LIKE$|SYSTEM_USERCROSS$|LINENO$|TABLECURRENT$|LOAD$|TABLESAMPLECURRENT_DATE$|MERGE$|TEXTSIZECURRENT_TIME$|NATIONAL$|THENCURRENT_TIMESTAMP$|NOCHECK$|TOCURRENT_USER$|NONCLUSTERED$|TOPCURSOR$|NOT$|TRANDATABASE$|NULL$|TRANSACTIONDBCC$|NULLIF$|TRIGGERDEALLOCATE$|OF$|TRUNCATEDECLARE$|OFF$|TRY_CONVERTDEFAULT$|OFFSETS$|TSEQUALDELETE$|ON$|UNIONDENY$|OPEN$|UNIQUEDESC$|OPENDATASOURCE$|UNPIVOTDISK$|OPENQUERY$|UPDATEDISTINCT$|OPENROWSET$|UPDATETEXTDISTRIBUTED$|OPENXML$|USEDOUBLE$|OPTION$|USERDROP$|OR$|VALUESDUMP$|ORDER$|VARYINGELSE$|OUTER$|VIEWEND$|OVER$|WAITFORERRLVL$|PERCENT$|WHENESCAPE$|PIVOT$|WHEREEXCEPT$|PLAN$|WHILEEXEC$|PRECISION$|WITHEXECUTE$|PRIMARY$|WITHIN GROUPEXISTS$|PRINT$|WRITETEXTEXIT$|PROC$).*$)^[A-Za-z][A-Za-z0-9_]*$
+    ConstraintDescription: The master user must be 1 to 128 alphanumeric characters, start with a letter, and cannot be a reserved word for the database engine.
+  MasterPassword:
+    Type: String
+    Description: Password for the master user.
+    MinLength: '8'
+    MaxLength: '128'
+    AllowedPattern: (^[^/\"@]+$)
+    ConstraintDescription: The password can be any printable ASCII character except "/", """, or "@" and must contain from 8 to 128 characters.
+    NoEcho: 'true'
+  AztecaPassword:
+    Type: String
+    Description: Password you want to use for the azteca SQL login.
+    MinLength: '8'
+    MaxLength: '128'
+    AllowedPattern: (^[^/\"@]+$)
+    ConstraintDescription: The password can be any printable ASCII character except "/", """, or "@" and must contain from 8 to 128 characters.
+    NoEcho: 'true'
+  RDSInstanceType:
+    Type: String
+    Default: db.m4.large
+    Description: The RDS instance type for db instance.
+    AllowedValues:
+    - db.m4.large
+    - db.m4.xlarge
+    - db.m4.2xlarge
+    - db.m4.4xlarge
+    - db.m4.16xlarge
+    - db.r4.large
+    - db.r4.xlarge
+    - db.r4.2xlarge
+    - db.r4.4xlarge
+    - db.r4.8xlarge
+    - db.r4.16xlarge
+    ConstraintDescription: Must be a valid RDS instance type.
+Conditions:
+  CreateKeyPair: !Equals [!Ref KeyPairState, create]
+Resources:
+  CityworksVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.17.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+      - Key: Name
+        Value: Cityworks
+  VPCInternetGateway:
+    Type: AWS::EC2::InternetGateway
+  VPCAttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CityworksVPC
+      InternetGatewayId: !Ref VPCInternetGateway
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: VPCAttachGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref SubnetPublic1
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: VPCAttachGateway
+    Properties:
+      Domain: vpc
+  RouteTablePrivate:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CityworksVPC
+      Tags:
+      - Key: Name
+        Value: Private Route - NAT Gateway
+  RoutePrivate:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+  RouteTablePublic:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CityworksVPC
+      Tags:
+      - Key: Name
+        Value: Public Route - Internet Gateway
+  RoutePublic:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref VPCInternetGateway
+  SubnetPrivate1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CityworksVPC
+      CidrBlock: 172.17.1.0/24
+      AvailabilityZone: !Select
+      - 0
+      - Fn::GetAZs: !Ref AWS::Region
+      Tags:
+      - Key: Name
+        Value: Private subnet 1
+  AclAssociationSubnetPrivate1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivate1
+      NetworkAclId: !GetAtt CityworksVPC.DefaultNetworkAcl
+  SubnetRouteTableAssociationSubnetPrivate1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivate1
+      RouteTableId: !Ref RouteTablePrivate
+  SubnetPrivate2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CityworksVPC
+      CidrBlock: 172.17.3.0/24
+      AvailabilityZone: !Select
+      - 1
+      - Fn::GetAZs: !Ref AWS::Region
+      Tags:
+      - Key: Name
+        Value: Private subnet 2
+  AclAssociationSubnetPrivate2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivate2
+      NetworkAclId: !GetAtt CityworksVPC.DefaultNetworkAcl
+  SubnetRouteTableAssociationSubnetPrivate2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivate2
+      RouteTableId: !Ref RouteTablePrivate
+  SubnetPublic1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CityworksVPC
+      CidrBlock: 172.17.0.0/24
+      MapPublicIpOnLaunch: 'true'
+      AvailabilityZone: !Select
+      - 0
+      - Fn::GetAZs: !Ref AWS::Region
+      Tags:
+      - Key: Name
+        Value: Public subnet 1
+  AclAssociationSubnetPublic1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref SubnetPublic1
+      NetworkAclId: !GetAtt CityworksVPC.DefaultNetworkAcl
+  SubnetRouteTableAssociationSubnetPublic1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPublic1
+      RouteTableId: !Ref RouteTablePublic
+  SubnetPublic2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CityworksVPC
+      CidrBlock: 172.17.2.0/24
+      MapPublicIpOnLaunch: 'true'
+      AvailabilityZone: !Select
+      - 1
+      - Fn::GetAZs: !Ref AWS::Region
+      Tags:
+      - Key: Name
+        Value: Public subnet 2
+  AclAssociationSubnetPublic2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref SubnetPublic2
+      NetworkAclId: !GetAtt CityworksVPC.DefaultNetworkAcl
+  SubnetRouteTableAssociationSubnetPublic2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPublic2
+      RouteTableId: !Ref RouteTablePublic
+  RDPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow RDP access
+      VpcId: !Ref CityworksVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3389'
+        ToPort: '3389'
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: RDP
+  WEBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow web access
+      VpcId: !Ref CityworksVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: WEB
+  CityworksInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref WindowsAMI
+      KeyName: !If [CreateKeyPair, !GetAtt NewKeyPair.KeyName, !Ref KeyPairName]
+      InstanceType: !Ref AppServerInstanceType
+      SubnetId: !Ref SubnetPublic1
+      PrivateIpAddress: 172.17.0.10
+      Tags:
+      - Key: Name
+        Value: Cityworks App Server
+      IamInstanceProfile: !Ref BootstrapInstanceProfile
+      SecurityGroupIds:
+      - !GetAtt CityworksVPC.DefaultSecurityGroup
+      - !Ref WEBSecurityGroup
+      - !Ref RDPSecurityGroup
+      BlockDeviceMappings:
+      - DeviceName: /dev/sda1
+        Ebs:
+          VolumeType: gp2
+          VolumeSize: '100'
+          DeleteOnTermination: 'true'
+      - DeviceName: xvdb
+        Ebs:
+          VolumeType: gp2
+          VolumeSize: '100'
+          DeleteOnTermination: 'true'
+      UserData:
+        Fn::Base64:
+          !Sub |
+            <powershell>
+              New-Item C:\bootstrap -ItemType Directory -Force
+              Set-Location C:\bootstrap
+
+              # Setup Send Windows is Ready on every reboot
+              C:\ProgramData\Amazon\EC2-Windows\Launch\Scripts\SendWindowsIsReady.ps1 -Schedule
+
+              # Install Prereq Features
+              $WindowsFeatures = `
+              "Web-Server",`
+              "Web-Asp-Net45",`
+              "Web-Metabase",`
+              "Web-Scripting-Tools",`
+              "Web-Mgmt-Service",`
+              "Web-AppInit",`
+              "NET-WCF-HTTP-Activation45",`
+              "NET-Framework-Core"
+              Install-WindowsFeature -Name $WindowsFeatures -IncludeManagementTools
+
+              # Install MVC Security Update MS14-059
+              #Invoke-WebRequest "https://download.microsoft.com/download/7/8/C/78C01A05-3B3F-4963-88EC-322BD8E3CBC2/AspNetMVC3.msi" -OutFile "C:\bootstrap\AspNetMVC3.msi"
+              #Start-Process "C:\bootstrap\AspNetMVC3.msi" /qn -Wait
+
+              # Install .NET 4.7.1
+              Invoke-WebRequest "https://download.microsoft.com/download/9/E/6/9E63300C-0941-4B45-A0EC-0008F96DD480/NDP471-KB4033342-x86-x64-AllOS-ENU.exe" -OutFile "C:\bootstrap\NDP471-KB4033342-x86-x64-AllOS-ENU.exe"
+              Start-Process "C:\bootstrap\NDP471-KB4033342-x86-x64-AllOS-ENU.exe" "/q /norestart" -Wait
+
+              # Install Crystal Reports Runtime
+              Invoke-WebRequest "https://downloads.businessobjects.com/akdlm/crnetruntime/clickonce/CRRuntime_64bit_13_0_22.msi" -OutFile "C:\bootstrap\CRRuntime_64bit_13_0_22.msi"
+              Start-Process "C:\bootstrap\CRRuntime_64bit_13_0_22.msi" /qn -Wait
+
+              # Install Chocolatey
+              Invoke-WebRequest https://chocolatey.org/install.ps1 | Invoke-Expression
+
+              #Install 7zip, Notepad++, Chromium, IISCrypto, URL Rewrite, SQL Server Management Studio
+              choco install -y 7zip notepadplusplus chromium iiscrypto-cli urlrewrite sql-server-management-studio
+
+              # Run IIS Crypto
+              & iiscryptocli40.exe /template best
+
+              # Grant IIS_IUSRS Modify on C:\Windows\Temp
+              $IISRule = New-Object system.security.accesscontrol.filesystemaccessrule("IIS_IUSRS","Modify","ContainerInherit, ObjectInherit","None","Allow")
+              $Directory = "C:\Windows\Temp"
+              $ACL = Get-Acl $Directory
+              $ACL.AddAccessRule($IISRule)
+              Set-Acl -Path $Directory -AclObject $ACL
+
+              # Setup SQL connection
+              [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SMO') | Out-Null
+              [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.ConnectionInfo') | Out-Null
+              $sqlCreds = New-Object Microsoft.SqlServer.Management.Common.ServerConnection('${RDSInstance.Endpoint.Address}', '${MasterUser}', '${MasterPassword}')
+              $sqlSrv = New-Object Microsoft.SqlServer.Management.Smo.Server($sqlCreds)
+
+              # Create azteca Login
+              $login = New-Object Microsoft.SqlServer.Management.Smo.Login($sqlSrv, 'azteca')
+              $login.LoginType = 'SqlLogin'
+              $login.PasswordPolicyEnforced = $false
+              $login.Create('${AztecaPassword}')
+
+              # Create blank database
+              $db = New-Object Microsoft.SqlServer.Management.Smo.Database($sqlSrv, 'cityworks')
+              $db.Create()
+
+              # Create azteca User and map in to azteca Login
+              $user = New-Object Microsoft.SqlServer.Management.Smo.User($db, 'azteca')
+              $user.Login = 'azteca'
+              $user.DefaultSchema = 'azteca'
+              $user.Create()
+
+              # Grant all permissions to azteca User
+              $permissionSet = New-Object Microsoft.SqlServer.Management.Smo.DatabasePermissionSet
+              $permissionSet.Alter=`
+              $permissionSet.AlterAnyApplicationRole=`
+              $permissionSet.AlterAnyAssembly=`
+              $permissionSet.AlterAnyAsymmetricKey=`
+              $permissionSet.AlterAnyCertificate=`
+              $permissionSet.AlterAnyContract=`
+              $permissionSet.AlterAnyDatabaseAudit=`
+              $permissionSet.AlterAnyDatabaseDdlTrigger=`
+              $permissionSet.AlterAnyDatabaseEventNotification=`
+              $permissionSet.AlterAnyDataspace=`
+              $permissionSet.AlterAnyFulltextCatalog=`
+              $permissionSet.AlterAnyMessageType=`
+              $permissionSet.AlterAnyRemoteServiceBinding=`
+              $permissionSet.AlterAnyRole=`
+              $permissionSet.AlterAnyRoute=`
+              $permissionSet.AlterAnySchema=`
+              $permissionSet.AlterAnyService=`
+              $permissionSet.AlterAnySymmetricKey=`
+              $permissionSet.AlterAnyUser=`
+              $permissionSet.Authenticate=`
+              $permissionSet.Checkpoint=`
+              $permissionSet.Connect=`
+              $permissionSet.ConnectReplication=`
+              $permissionSet.Control=`
+              $permissionSet.CreateAggregate=`
+              $permissionSet.CreateAssembly=`
+              $permissionSet.CreateAsymmetricKey=`
+              $permissionSet.CreateCertificate=`
+              $permissionSet.CreateContract=`
+              $permissionSet.CreateDatabaseDdlEventNotification=`
+              $permissionSet.CreateDefault=`
+              $permissionSet.CreateFulltextCatalog=`
+              $permissionSet.CreateFunction=`
+              $permissionSet.CreateMessageType=`
+              $permissionSet.CreateProcedure=`
+              $permissionSet.CreateQueue=`
+              $permissionSet.CreateRemoteServiceBinding=`
+              $permissionSet.CreateRole=`
+              $permissionSet.CreateRoute=`
+              $permissionSet.CreateRule=`
+              $permissionSet.CreateSchema=`
+              $permissionSet.CreateService=`
+              $permissionSet.CreateSymmetricKey=`
+              $permissionSet.CreateSynonym=`
+              $permissionSet.CreateTable=`
+              $permissionSet.CreateType=`
+              $permissionSet.CreateView=`
+              $permissionSet.CreateXmlSchemaCollection=`
+              $permissionSet.Delete=`
+              $permissionSet.Execute=`
+              $permissionSet.Insert=`
+              $permissionSet.References=`
+              $permissionSet.Select=`
+              $permissionSet.Showplan=`
+              $permissionSet.SubscribeQueryNotifications=`
+              $permissionSet.TakeOwnership=`
+              $permissionSet.Update=`
+              $permissionSet.ViewDatabaseState=`
+              $permissionSet.ViewDefinition=`
+              $true
+              $db.Grant($permissionSet, 'azteca')
+
+              # Assign Option Group to RDS instance
+              Edit-RDSDBInstance -DBInstanceIdentifier '${RDSInstance}' -OptionGroupName '${RDSOptionGroup}' -ApplyImmediately $true
+
+              Restart-Computer -Force
+            </powershell>
+  CityworksInstanceEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: VPCAttachGateway
+    Properties:
+      InstanceId: !Ref CityworksInstance
+      Domain: vpc
+  BootstrapRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - rds:ModifyDBInstance
+            Resource:
+            - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:${RDSInstance}
+            - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:og:${RDSOptionGroup}
+  BootstrapInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - !Ref BootstrapRole
+  NewKeyPair:
+    Type: Custom::KeyPair
+    Condition: CreateKeyPair
+    Properties:
+      ServiceToken: !GetAtt KeyPairCustomResourceFunction.Arn
+      KeyName: !Ref KeyPairName
+  KeyPairCustomResourceFunction:
+    Type: AWS::Lambda::Function
+    Condition: CreateKeyPair
+    Properties:
+      FunctionName: KeyPairCustomResourceFunction
+      Description: Create a new Key Pair and store it's private key in Parameter Store
+      Code:
+        ZipFile: |
+          from boto3 import client
+          from botocore.exceptions import ClientError
+          import cfnresponse
+
+
+          def create_key(KeyName, ec2, ssm):
+              try:
+                  response = ec2.create_key_pair(KeyName=KeyName)
+                  return response
+              except ClientError as e:
+                  print("Error creating key: {}".format(e))
+                  return None
+
+
+          def delete_key(KeyName, ec2, ssm):
+              try:
+                  ec2.delete_key_pair(KeyName=KeyName)
+                  return True
+              except ClientError as e:
+                  print("Error deleting Key Pair: {}".format(e))
+                  return False
+
+
+          def lambda_handler(event, context):
+              responseData = {}
+
+              if event["RequestType"] == "Create":
+                  print("CREATE!")
+                  ec2 = client("ec2")
+                  ssm = client("ssm")
+                  props = event["ResourceProperties"]
+
+                  response = create_key(props["KeyName"], ec2, ssm)
+                  if response:
+                      responseData["KeyName"] = response["KeyName"]
+                      responseData["KeyMaterial"] = response["KeyMaterial"]
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+                  else:
+                      print("CREATE request failed!")
+                      cfnresponse.send(event, context, cfnresponse.FAILED, responseData)
+
+              elif event["RequestType"] == "Update":
+                  print("UPDATE!")
+                  props = event["ResourceProperties"]
+                  oldprops = event["OldResourceProperties"]
+
+                  print(("Update event not supported. Revert the KeyName property"
+                        " in the template from {} to {}").format(props["KeyName"],
+                                                                 oldprops["KeyName"])
+                        )
+                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData)
+
+              elif event["RequestType"] == "Delete":
+                  print("DELETE!")
+                  ec2 = client("ec2")
+                  ssm = client("ssm")
+                  props = event["ResourceProperties"]
+
+                  if delete_key(props["KeyName"], ec2, ssm):
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+                  else:
+                      print("DELETE request failed!")
+                      cfnresponse.send(event, context, cfnresponse.FAILED, responseData)
+
+              else:
+                  print("FAILED!")
+                  print("Unexpected event received from CloudFormation:\n{}".format(event))
+                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData)
+      Handler: index.lambda_handler
+      Role: !GetAtt KeyPairCustomResourceFunctionRole.Arn
+      Runtime: python3.6
+      Timeout: '60'
+  KeyPairCustomResourceFunctionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateKeyPair
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: 
+            - ec2:CreateKeyPair
+            - ec2:DeleteKeyPair
+            Resource: '*'
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: sqlserver-se
+      LicenseModel: license-included
+      AvailabilityZone: !Select
+      - 0
+      - Fn::GetAZs: !Ref AWS::Region
+      PubliclyAccessible: false
+      StorageType: gp2
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: '35'
+      PreferredBackupWindow: 08:00-11:00
+      PreferredMaintenanceWindow: sun:11:00-sun:14:00
+      DBInstanceClass: !Ref RDSInstanceType
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      MasterUsername: !Ref MasterUser
+      MasterUserPassword: !Ref MasterPassword
+      VPCSecurityGroups:
+      - !GetAtt CityworksVPC.DefaultSecurityGroup
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private Subnets
+      SubnetIds:
+      - !Ref SubnetPrivate1
+      - !Ref SubnetPrivate2
+  RDSOptionGroup:
+    Type: AWS::RDS::OptionGroup
+    Properties:
+      EngineName: sqlserver-se
+      MajorEngineVersion: '14.00'
+      OptionGroupDescription: Native Backup and Restore
+      OptionConfigurations:
+      - OptionName: SQLSERVER_BACKUP_RESTORE
+        OptionSettings:
+          - Name: IAM_ROLE_ARN
+            Value: !GetAtt RoleRDSNativeBakupRestore.Arn
+  RoleRDSNativeBakupRestore:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: rds.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:GetObjectMetaData
+            - s3:AbortMultipartUpload
+            - s3:ListMultipartUploadParts
+            Resource:
+            - !Sub 'arn:aws:s3:::${RDSS3Bucket}/*'
+          - Effect: Allow
+            Action:
+            - s3:ListBucket
+            - s3:GetBucketLocation
+            Resource:
+            - !Sub 'arn:aws:s3:::${RDSS3Bucket}'
+  RDSS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub rds-nativebackup-${AWS::AccountId}
+  s3bucketAccess:
+    Type: AWS::IAM::User
+    Properties:
+      Path: /
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - s3:ListBucket
+            - s3:GetBucketAcl
+            - s3:GetBucketVersioning
+            - s3:GetBucketRequestPayment
+            - s3:GetBucketLocation
+            - s3:GetBucketPolicy
+            Resource: !Sub 'arn:aws:s3:::${RDSS3Bucket}'
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:DeleteObject
+            - s3:DeleteObjectVersion
+            - s3:GetObjectAcl
+            - s3:GetObjectVersion
+            - s3:GetObjectVersionAcl
+            - s3:PutObject
+            - s3:PutObjectAcl
+            - s3:PutObjectVersionAcl
+            Resource: !Sub 'arn:aws:s3:::${RDSS3Bucket}/*'
+  s3bucketAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref s3bucketAccess
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: EC2 Instance Configuration
+      Parameters:
+      - AppServerInstanceType
+      - KeyPairName
+      - KeyPairState
+      - WindowsAMI
+    - Label:
+        default: RDS Instance Configuration
+      Parameters:
+      - RDSInstanceType
+      - MasterUser
+      - MasterPassword
+      - AztecaPassword
+    ParameterLabels:
+      AppServerInstanceType:
+        default: Instance Type
+      KeyPairName:
+        default: Key Pair
+      KeyPairState:
+        default: Create Key Pair?
+      WindowsAMI:
+        default: Windows AMI Id
+      RDSInstanceType:
+        default: DB Instance Class
+      MasterUser:
+        default: Master Username
+      MasterPassword:
+        default: Master Password
+      AztecaPassword:
+        default: Azteca Password
+Outputs:
+  CityworksInstanceAddress:
+    Description: The DNS name of the Cityworks server.
+    Value: !GetAtt CityworksInstance.PublicDnsName
+  KeyPairPrivateKey:
+    Description: The private key of the newly created key pair
+    Value: !GetAtt NewKeyPair.KeyMaterial
+    Condition: CreateKeyPair
+  RDSInstanceAddress:
+    Description: RDS Instance endpoint address.
+    Value: !GetAtt RDSInstance.Endpoint.Address
+  RDSMasterUser:
+    Description: Master user for the RDS instance
+    Value: !Ref MasterUser
+  RDSMasterPassword:
+    Description: Master password for the RDS instance
+    Value: !Ref MasterPassword
+  AztecaPassword:
+    Description: Password for the sql user azteca
+    Value: !Ref AztecaPassword
+  RDSS3Bucket:
+    Description: The S3 bucket that will store RDS native backups.
+    Value: !Ref RDSS3Bucket
+  S3BucketAccessKeyId:
+    Description: The AccessKeyId for the user that has read write access to the S3 bucket.
+    Value: !Ref s3bucketAccessKey
+  S3BucketSecretAccessKey:
+    Description: The SecretAccessKey for the user that has read write access to the S3 bucket.
+    Value: !GetAtt s3bucketAccessKey.SecretAccessKey
