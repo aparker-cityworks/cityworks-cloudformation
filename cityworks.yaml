@@ -626,6 +626,7 @@ Resources:
             Resource: '*'
   RDSInstance:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
       Engine: sqlserver-se
       LicenseModel: license-included
