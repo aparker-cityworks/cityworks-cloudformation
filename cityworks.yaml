@@ -507,7 +507,7 @@ Resources:
             - rds:ModifyDBInstance
             Resource:
             - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:${RDSInstance}
-            - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:og:${RDSOptionGroup}
+            - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:og:* # ${RDSOptionGroup} changed to * because of CloudFormation mixed-case bug
   BootstrapInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -620,7 +620,7 @@ Resources:
           Version: '2012-10-17'
           Statement:
           - Effect: Allow
-            Action: 
+            Action:
             - ec2:CreateKeyPair
             - ec2:DeleteKeyPair
             Resource: '*'
