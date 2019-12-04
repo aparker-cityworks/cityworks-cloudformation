@@ -5,81 +5,32 @@ Parameters:
   AppServerInstanceType:
     Type: String
     Description: The EC2 instance type for the Cityworks app server.
-    Default: m4.large
+    Default: m5.xlarge
     AllowedValues:
-    - t2.nano
-    - t2.micro
-    - t2.small
-    - t2.medium
-    - t2.large
-    - t2.xlarge
-    - t2.2xlarge
     - m4.large
     - m4.xlarge
     - m4.2xlarge
     - m4.4xlarge
-    - m4.10xlarge
-    - m4.16xlarge
     - m5.large
     - m5.xlarge
     - m5.2xlarge
     - m5.4xlarge
-    - m5.12xlarge
-    - m5.24xlarge
-    - c4.large
-    - c4.xlarge
-    - c4.2xlarge
-    - c4.4xlarge
-    - c4.8xlarge
-    - c5.large
-    - c5.xlarge
-    - c5.2xlarge
-    - c5.4xlarge
-    - c5.9xlarge
-    - c5.18xlarge
+    - t2.large
+    - t2.xlarge
+    - t2.2xlarge
+    - t3.large
+    - t3.xlarge
+    - t3.2xlarge
     - r4.large
     - r4.xlarge
     - r4.2xlarge
-    - r4.4xlarge
-    - r4.8xlarge
-    - r4.16xlarge
-    - x1.16xlarge
-    - x1.32xlarge
-    - x1e.xlarge
-    - x1e.2xlarge
-    - x1e.4xlarge
-    - x1e.8xlarge
-    - x1e.16xlarge
-    - x1e.32xlarge
-    - d2.xlarge
-    - d2.2xlarge
-    - d2.4xlarge
-    - d2.8xlarge
-    - h1.2xlarge
-    - h1.4xlarge
-    - h1.8xlarge
-    - h1.16xlarge
-    - i3.large
-    - i3.xlarge
-    - i3.2xlarge
-    - i3.4xlarge
-    - i3.8xlarge
-    - i3.16xlarge
-    - f1.2xlarge
-    - f1.16xlarge
-    - g3.4xlarge
-    - g3.8xlarge
-    - g3.16xlarge
-    - p2.xlarge
-    - p2.8xlarge
-    - p2.16xlarge
-    - p3.2xlarge
-    - p3.8xlarge
-    - p3.16xlarge
+    - r5.large
+    - r5.xlarge
+    - r5.2xlarge
     ConstraintDescription: Must be a valid EC2 instance type.
   WindowsAMI:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base
+    Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
     Description: The Windows AMI ID. Don't modify to use the lastest AMI.
   KeyPairName:
     Type: String
@@ -120,20 +71,25 @@ Parameters:
     NoEcho: 'true'
   RDSInstanceType:
     Type: String
-    Default: db.m4.large
+    Default: db.r5.xlarge
     Description: The RDS instance type for db instance.
     AllowedValues:
     - db.m4.large
     - db.m4.xlarge
     - db.m4.2xlarge
     - db.m4.4xlarge
-    - db.m4.16xlarge
+    - db.m5.large
+    - db.m5.xlarge
+    - db.m5.2xlarge
+    - db.m5.4xlarge
     - db.r4.large
     - db.r4.xlarge
     - db.r4.2xlarge
     - db.r4.4xlarge
-    - db.r4.8xlarge
-    - db.r4.16xlarge
+    - db.r5.large
+    - db.r5.xlarge
+    - db.r5.2xlarge
+    - db.r5.4xlarge
     ConstraintDescription: Must be a valid RDS instance type.
 Conditions:
   CreateKeyPair: !Equals [!Ref KeyPairState, create]
@@ -319,7 +275,7 @@ Resources:
       Tags:
       - Key: Name
         Value: Cityworks App Server
-      IamInstanceProfile: !Ref BootstrapInstanceProfile
+      IamInstanceProfile: !Ref ManagedInstanceProfile
       SecurityGroupIds:
       - !GetAtt CityworksVPC.DefaultSecurityGroup
       - !Ref WEBSecurityGroup
@@ -328,161 +284,15 @@ Resources:
       - DeviceName: /dev/sda1
         Ebs:
           VolumeType: gp2
-          VolumeSize: '100'
+          VolumeSize: '128'
           DeleteOnTermination: 'true'
-      - DeviceName: xvdb
-        Ebs:
-          VolumeType: gp2
-          VolumeSize: '100'
-          DeleteOnTermination: 'true'
-      UserData:
-        Fn::Base64:
-          !Sub |
-            <powershell>
-              New-Item C:\bootstrap -ItemType Directory -Force
-              Set-Location C:\bootstrap
-
-              # Setup Send Windows is Ready on every reboot
-              C:\ProgramData\Amazon\EC2-Windows\Launch\Scripts\SendWindowsIsReady.ps1 -Schedule
-
-              # Install Prereq Features
-              $WindowsFeatures = `
-              "Web-Server",`
-              "Web-Asp-Net45",`
-              "Web-Metabase",`
-              "Web-Scripting-Tools",`
-              "Web-Mgmt-Service",`
-              "Web-AppInit",`
-              "NET-WCF-HTTP-Activation45",`
-              "NET-Framework-Core"
-              Install-WindowsFeature -Name $WindowsFeatures -IncludeManagementTools
-
-              # Install MVC Security Update MS14-059
-              #Invoke-WebRequest "https://download.microsoft.com/download/7/8/C/78C01A05-3B3F-4963-88EC-322BD8E3CBC2/AspNetMVC3.msi" -OutFile "C:\bootstrap\AspNetMVC3.msi"
-              #Start-Process "C:\bootstrap\AspNetMVC3.msi" /qn -Wait
-
-              # Install .NET 4.7.1
-              Invoke-WebRequest "https://download.microsoft.com/download/9/E/6/9E63300C-0941-4B45-A0EC-0008F96DD480/NDP471-KB4033342-x86-x64-AllOS-ENU.exe" -OutFile "C:\bootstrap\NDP471-KB4033342-x86-x64-AllOS-ENU.exe"
-              Start-Process "C:\bootstrap\NDP471-KB4033342-x86-x64-AllOS-ENU.exe" "/q /norestart" -Wait
-
-              # Install Crystal Reports Runtime
-              Invoke-WebRequest "https://downloads.businessobjects.com/akdlm/crnetruntime/clickonce/CRRuntime_64bit_13_0_22.msi" -OutFile "C:\bootstrap\CRRuntime_64bit_13_0_22.msi"
-              Start-Process "C:\bootstrap\CRRuntime_64bit_13_0_22.msi" /qn -Wait
-
-              # Install Chocolatey
-              Invoke-WebRequest https://chocolatey.org/install.ps1 | Invoke-Expression
-
-              #Install 7zip, Notepad++, Chromium, IISCrypto, URL Rewrite, SQL Server Management Studio
-              choco install -y 7zip notepadplusplus chromium iiscrypto-cli urlrewrite sql-server-management-studio
-
-              # Run IIS Crypto
-              & iiscryptocli40.exe /template best
-
-              # Grant IIS_IUSRS Modify on C:\Windows\Temp
-              $IISRule = New-Object system.security.accesscontrol.filesystemaccessrule("IIS_IUSRS","Modify","ContainerInherit, ObjectInherit","None","Allow")
-              $Directory = "C:\Windows\Temp"
-              $ACL = Get-Acl $Directory
-              $ACL.AddAccessRule($IISRule)
-              Set-Acl -Path $Directory -AclObject $ACL
-
-              # Setup SQL connection
-              [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SMO') | Out-Null
-              [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.ConnectionInfo') | Out-Null
-              $sqlCreds = New-Object Microsoft.SqlServer.Management.Common.ServerConnection('${RDSInstance.Endpoint.Address}', '${MasterUser}', '${MasterPassword}')
-              $sqlSrv = New-Object Microsoft.SqlServer.Management.Smo.Server($sqlCreds)
-
-              # Create azteca Login
-              $login = New-Object Microsoft.SqlServer.Management.Smo.Login($sqlSrv, 'azteca')
-              $login.LoginType = 'SqlLogin'
-              $login.PasswordPolicyEnforced = $false
-              $login.Create('${AztecaPassword}')
-
-              # Create blank database
-              $db = New-Object Microsoft.SqlServer.Management.Smo.Database($sqlSrv, 'cityworks')
-              $db.Create()
-
-              # Create azteca User and map in to azteca Login
-              $user = New-Object Microsoft.SqlServer.Management.Smo.User($db, 'azteca')
-              $user.Login = 'azteca'
-              $user.DefaultSchema = 'azteca'
-              $user.Create()
-
-              # Grant all permissions to azteca User
-              $permissionSet = New-Object Microsoft.SqlServer.Management.Smo.DatabasePermissionSet
-              $permissionSet.Alter=`
-              $permissionSet.AlterAnyApplicationRole=`
-              $permissionSet.AlterAnyAssembly=`
-              $permissionSet.AlterAnyAsymmetricKey=`
-              $permissionSet.AlterAnyCertificate=`
-              $permissionSet.AlterAnyContract=`
-              $permissionSet.AlterAnyDatabaseAudit=`
-              $permissionSet.AlterAnyDatabaseDdlTrigger=`
-              $permissionSet.AlterAnyDatabaseEventNotification=`
-              $permissionSet.AlterAnyDataspace=`
-              $permissionSet.AlterAnyFulltextCatalog=`
-              $permissionSet.AlterAnyMessageType=`
-              $permissionSet.AlterAnyRemoteServiceBinding=`
-              $permissionSet.AlterAnyRole=`
-              $permissionSet.AlterAnyRoute=`
-              $permissionSet.AlterAnySchema=`
-              $permissionSet.AlterAnyService=`
-              $permissionSet.AlterAnySymmetricKey=`
-              $permissionSet.AlterAnyUser=`
-              $permissionSet.Authenticate=`
-              $permissionSet.Checkpoint=`
-              $permissionSet.Connect=`
-              $permissionSet.ConnectReplication=`
-              $permissionSet.Control=`
-              $permissionSet.CreateAggregate=`
-              $permissionSet.CreateAssembly=`
-              $permissionSet.CreateAsymmetricKey=`
-              $permissionSet.CreateCertificate=`
-              $permissionSet.CreateContract=`
-              $permissionSet.CreateDatabaseDdlEventNotification=`
-              $permissionSet.CreateDefault=`
-              $permissionSet.CreateFulltextCatalog=`
-              $permissionSet.CreateFunction=`
-              $permissionSet.CreateMessageType=`
-              $permissionSet.CreateProcedure=`
-              $permissionSet.CreateQueue=`
-              $permissionSet.CreateRemoteServiceBinding=`
-              $permissionSet.CreateRole=`
-              $permissionSet.CreateRoute=`
-              $permissionSet.CreateRule=`
-              $permissionSet.CreateSchema=`
-              $permissionSet.CreateService=`
-              $permissionSet.CreateSymmetricKey=`
-              $permissionSet.CreateSynonym=`
-              $permissionSet.CreateTable=`
-              $permissionSet.CreateType=`
-              $permissionSet.CreateView=`
-              $permissionSet.CreateXmlSchemaCollection=`
-              $permissionSet.Delete=`
-              $permissionSet.Execute=`
-              $permissionSet.Insert=`
-              $permissionSet.References=`
-              $permissionSet.Select=`
-              $permissionSet.Showplan=`
-              $permissionSet.SubscribeQueryNotifications=`
-              $permissionSet.TakeOwnership=`
-              $permissionSet.Update=`
-              $permissionSet.ViewDatabaseState=`
-              $permissionSet.ViewDefinition=`
-              $true
-              $db.Grant($permissionSet, 'azteca')
-
-              # Assign Option Group to RDS instance
-              Edit-RDSDBInstance -DBInstanceIdentifier '${RDSInstance}' -OptionGroupName '${RDSOptionGroup}' -ApplyImmediately $true
-
-              Restart-Computer -Force
-            </powershell>
   CityworksInstanceEIP:
     Type: AWS::EC2::EIP
     DependsOn: VPCAttachGateway
     Properties:
       InstanceId: !Ref CityworksInstance
       Domain: vpc
-  BootstrapRole:
+  ManagedInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -490,15 +300,43 @@ Resources:
         Statement:
         - Effect: Allow
           Principal:
-            Service:
-            - ec2.amazonaws.com
-          Action:
-          - sts:AssumeRole
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
       Path: /
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  ManagedInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - !Ref ManagedInstanceRole
+      InstanceProfileName: ManagedInstanceProfile
+  AutomationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ssm.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /    
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      RoleName: AutomationServiceRole
       Policies:
-      - PolicyName: root
+      - PolicyName: passrole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource:
+            - !GetAtt ManagedInstanceRole.Arn
+            - !Sub arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole
+      - PolicyName: modifyrds
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -508,12 +346,302 @@ Resources:
             Resource:
             - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:${RDSInstance}
             - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:og:* # ${RDSOptionGroup} changed to * because of CloudFormation mixed-case bug
-  BootstrapInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
+  AppBootstrapAutomationDocument:
+    Type: AWS::SSM::Document
     Properties:
-      Path: /
-      Roles:
-      - !Ref BootstrapRole
+      DocumentType: Automation
+      Content:
+        schemaVersion: '0.3'
+        description: Prepares base Window instance to host Cityworks application.
+        assumeRole: '{{AutomationAssumeRole}}'
+        parameters:
+          AutomationAssumeRole:
+            type: String
+            description: (Required) The ARN of the role that allows Automation to perform the actions on your behalf.
+            default: arn:aws:iam::{{global:ACCOUNT_ID}}:role/AutomationServiceRole
+          instanceId:
+            type: String
+            description: (Required) The instance id of the instance to be bootstrapped.
+        mainSteps:
+        - name: InstallWindowsFeatures
+          action: aws:runCommand
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 1200
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+            - '{{instanceId}}'
+            Parameters:
+              commands:
+              - |
+                try {
+                    New-Item C:\bootstrap -ItemType Directory -Force
+
+                    # Rebuild ServerComponentCache
+                    Remove-Item "HKLM:\SOFTWARE\Microsoft\ServerManager\ServicingStorage\ServerComponentCache\" -Recurse -Force -ErrorAction SilentlyContinue
+                    Get-WindowsFeature -ErrorAction Stop | Out-Null
+
+                    # Install Prereq Features
+                    $WindowsFeatures = `
+                    "Web-Server",`
+                    "Web-Asp-Net45",`
+                    "Web-Metabase",`
+                    "Web-Scripting-Tools",`
+                    "Web-Mgmt-Service",`
+                    "Web-AppInit",`
+                    "NET-WCF-HTTP-Activation45",`
+                    "NET-Framework-Core"
+                    Install-WindowsFeature -Name $WindowsFeatures -IncludeManagementTools -ErrorAction Stop
+                } catch {
+                    Write-Host "Executing Install-WindowsFeature resulted in error: $($_)"
+                    Write-Host "Rebooting..."
+                    Exit 3010
+                }
+        - name: InstallDotNetFramework
+          action: aws:runCommand
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+            - '{{instanceId}}'
+            Parameters:
+              workingDirectory: C:\bootstrap
+              commands:
+              - !Sub |
+                  try {
+                      Invoke-WebRequest "https://download.visualstudio.microsoft.com/download/pr/014120d7-d689-4305-befd-3cb711108212/0fd66638cde16859462a6243a4629a50/ndp48-x86-x64-allos-enu.exe" -OutFile "ndp48-x86-x64-allos-enu.exe"
+                      $result = Start-Process "ndp48-x86-x64-allos-enu.exe" "/q /norestart" -PassThru -Wait
+                      if($result.PSObject.Properties.Name -contains "ExitCode") {
+                          if($result.ExitCode -eq 3010) {
+                              Exit 0
+                          } else {
+                              Exit $result.ExitCode
+                          }
+                      } else{
+                          Write-Host "There was a problem running the installer."
+                          Exit -1
+                      }
+                  } catch {
+                      Write-Host "An error occured while downloading or installing: $($_)"
+                      Exit -1
+                  }
+        - name: InstallCrystalReportsRuntime
+          action: aws:runCommand
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+            - '{{instanceId}}'
+            Parameters:
+              workingDirectory: C:\bootstrap
+              commands:
+              - !Sub |
+                  try {
+                      Invoke-WebRequest "https://downloads.businessobjects.com/akdlm/crnetruntime/clickonce/CRRuntime_64bit_13_0_25.msi" -OutFile "CRRuntime_64bit_13_0_25.msi"
+                      $result = Start-Process "CRRuntime_64bit_13_0_25.msi" "/q /norestart" -PassThru -Wait
+                      if($result.PSObject.Properties.Name -contains "ExitCode") {
+                          if($result.ExitCode -eq 3010) {
+                              Exit 0
+                          } else {
+                              Exit $result.ExitCode
+                          }
+                      } else{
+                          Write-Host "There was a problem running the installer."
+                          Exit -1
+                      }
+                  } catch {
+                      Write-Host "An error occured while downloading or installing: $($_)"
+                      Exit -1
+                  }
+        - name: InstallChocolateyApps
+          action: aws:runCommand
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+            - '{{instanceId}}'
+            Parameters:
+              workingDirectory: C:\bootstrap
+              commands:
+              - !Sub |
+                  try {
+                      Invoke-WebRequest https://chocolatey.org/install.ps1 -UseBasicParsing | Invoke-Expression
+                      & C:\ProgramData\chocolatey\bin\choco.exe install -y 7zip vscode firefox iiscrypto-cli urlrewrite sql-server-management-studio
+                      if($?) {
+                          Exit 0
+                      } else{
+                          Write-Host "There was a problem running chocolatey."
+                          Exit -1
+                      }
+                  } catch {
+                      Write-Host "An error occured while downloading or installing: $($_)"
+                      Exit -1
+                  }
+        - name: ConfigureHost
+          action: aws:runCommand
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+            - '{{instanceId}}'
+            Parameters:
+              workingDirectory: C:\bootstrap
+              commands:
+              - !Sub |
+                  try {
+                      # Run IIS Crypto to configure best practices TLS settings
+                      & C:\ProgramData\chocolatey\bin\iiscryptocli40.exe /template best
+
+                      # Grant IIS_IUSRS Modify on C:\Windows\Temp
+                      $IISRule = New-Object system.security.accesscontrol.filesystemaccessrule("IIS_IUSRS","Modify","ContainerInherit, ObjectInherit","None","Allow")
+                      $Directory = "C:\Windows\Temp"
+                      $ACL = Get-Acl $Directory
+                      $ACL.AddAccessRule($IISRule)
+                      Set-Acl -Path $Directory -AclObject $ACL
+                  } catch {
+                      Write-Host "An error occured while configuring host: $($_)"
+                      Exit -1
+                  }
+        - name: ConfigureCityworksDatabase
+          action: aws:runCommand
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+            - '{{instanceId}}'
+            Parameters:
+              workingDirectory: C:\bootstrap
+              commands:
+              - !Sub |
+                  try {
+                      # Setup SQL connection
+                      Install-PackageProvider -Name NuGet -Force
+                      Install-Module -Name SqlServer -Force -Confirm:$false
+                      Import-Module SqlServer
+                      $sqlCreds = New-Object Microsoft.SqlServer.Management.Common.ServerConnection('${RDSInstance.Endpoint.Address}', '${MasterUser}', '${MasterPassword}')
+                      $sqlSrv = New-Object Microsoft.SqlServer.Management.Smo.Server($sqlCreds)
+
+                      # Create azteca Login
+                      $login = New-Object Microsoft.SqlServer.Management.Smo.Login($sqlSrv, 'azteca')
+                      $login.LoginType = 'SqlLogin'
+                      $login.PasswordPolicyEnforced = $false
+                      $login.Create('${AztecaPassword}')
+
+                      # Create blank database
+                      $db = New-Object Microsoft.SqlServer.Management.Smo.Database($sqlSrv, 'cityworks')
+                      $db.Create()
+
+                      # Create azteca User and map in to azteca Login
+                      $user = New-Object Microsoft.SqlServer.Management.Smo.User($db, 'azteca')
+                      $user.Login = 'azteca'
+                      $user.DefaultSchema = 'azteca'
+                      $user.Create()
+
+                      # Grant all permissions to azteca User
+                      $permissionSet = New-Object Microsoft.SqlServer.Management.Smo.DatabasePermissionSet
+                      $permissionSet.Alter=`
+                      $permissionSet.AlterAnyApplicationRole=`
+                      $permissionSet.AlterAnyAssembly=`
+                      $permissionSet.AlterAnyAsymmetricKey=`
+                      $permissionSet.AlterAnyCertificate=`
+                      $permissionSet.AlterAnyContract=`
+                      $permissionSet.AlterAnyDatabaseAudit=`
+                      $permissionSet.AlterAnyDatabaseDdlTrigger=`
+                      $permissionSet.AlterAnyDatabaseEventNotification=`
+                      $permissionSet.AlterAnyDataspace=`
+                      $permissionSet.AlterAnyFulltextCatalog=`
+                      $permissionSet.AlterAnyMessageType=`
+                      $permissionSet.AlterAnyRemoteServiceBinding=`
+                      $permissionSet.AlterAnyRole=`
+                      $permissionSet.AlterAnyRoute=`
+                      $permissionSet.AlterAnySchema=`
+                      $permissionSet.AlterAnyService=`
+                      $permissionSet.AlterAnySymmetricKey=`
+                      $permissionSet.AlterAnyUser=`
+                      $permissionSet.Authenticate=`
+                      $permissionSet.Checkpoint=`
+                      $permissionSet.Connect=`
+                      $permissionSet.ConnectReplication=`
+                      $permissionSet.Control=`
+                      $permissionSet.CreateAggregate=`
+                      $permissionSet.CreateAssembly=`
+                      $permissionSet.CreateAsymmetricKey=`
+                      $permissionSet.CreateCertificate=`
+                      $permissionSet.CreateContract=`
+                      $permissionSet.CreateDatabaseDdlEventNotification=`
+                      $permissionSet.CreateDefault=`
+                      $permissionSet.CreateFulltextCatalog=`
+                      $permissionSet.CreateFunction=`
+                      $permissionSet.CreateMessageType=`
+                      $permissionSet.CreateProcedure=`
+                      $permissionSet.CreateQueue=`
+                      $permissionSet.CreateRemoteServiceBinding=`
+                      $permissionSet.CreateRole=`
+                      $permissionSet.CreateRoute=`
+                      $permissionSet.CreateRule=`
+                      $permissionSet.CreateSchema=`
+                      $permissionSet.CreateService=`
+                      $permissionSet.CreateSymmetricKey=`
+                      $permissionSet.CreateSynonym=`
+                      $permissionSet.CreateTable=`
+                      $permissionSet.CreateType=`
+                      $permissionSet.CreateView=`
+                      $permissionSet.CreateXmlSchemaCollection=`
+                      $permissionSet.Delete=`
+                      $permissionSet.Execute=`
+                      $permissionSet.Insert=`
+                      $permissionSet.References=`
+                      $permissionSet.Select=`
+                      $permissionSet.Showplan=`
+                      $permissionSet.SubscribeQueryNotifications=`
+                      $permissionSet.TakeOwnership=`
+                      $permissionSet.Update=`
+                      $permissionSet.ViewDatabaseState=`
+                      $permissionSet.ViewDefinition=`
+                      $true
+                      $db.Grant($permissionSet, 'azteca')
+                  } catch {
+                      Write-Host "An error occured while configuring db: $($_)"
+                      Exit -1
+                  }
+        - name: AssociateRDSOptionGroup
+          action: aws:executeAwsApi
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            Service: rds
+            Api: ModifyDBInstance
+            DBInstanceIdentifier: !Ref RDSInstance
+            OptionGroupName: !Ref RDSOptionGroup
+            ApplyImmediately: true
+        - name: RestartInstance
+          action: aws:executeAutomation
+          maxAttempts: 3
+          onFailure: Abort
+          timeoutSeconds: 600
+          inputs:
+            DocumentName: AWS-RestartEC2Instance
+            RuntimeParameters:
+              InstanceId: '{{instanceId}}'
+  AppBootstrapAutomationAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      Name: !Ref AppBootstrapAutomationDocument
+      Parameters:
+        instanceId: [!Ref CityworksInstance]
+        AutomationAssumeRole: [!GetAtt AutomationServiceRole.Arn]
   NewKeyPair:
     Type: Custom::KeyPair
     Condition: CreateKeyPair
@@ -525,7 +653,7 @@ Resources:
     Condition: CreateKeyPair
     Properties:
       FunctionName: KeyPairCustomResourceFunction
-      Description: Create a new Key Pair and store it's private key in Parameter Store
+      Description: Create a new Key Pair
       Code:
         ZipFile: |
           from boto3 import client
@@ -533,7 +661,7 @@ Resources:
           import cfnresponse
 
 
-          def create_key(KeyName, ec2, ssm):
+          def create_key(KeyName, ec2):
               try:
                   response = ec2.create_key_pair(KeyName=KeyName)
                   return response
@@ -542,7 +670,7 @@ Resources:
                   return None
 
 
-          def delete_key(KeyName, ec2, ssm):
+          def delete_key(KeyName, ec2):
               try:
                   ec2.delete_key_pair(KeyName=KeyName)
                   return True
@@ -557,10 +685,9 @@ Resources:
               if event["RequestType"] == "Create":
                   print("CREATE!")
                   ec2 = client("ec2")
-                  ssm = client("ssm")
                   props = event["ResourceProperties"]
 
-                  response = create_key(props["KeyName"], ec2, ssm)
+                  response = create_key(props["KeyName"], ec2)
                   if response:
                       responseData["KeyName"] = response["KeyName"]
                       responseData["KeyMaterial"] = response["KeyMaterial"]
@@ -583,10 +710,9 @@ Resources:
               elif event["RequestType"] == "Delete":
                   print("DELETE!")
                   ec2 = client("ec2")
-                  ssm = client("ssm")
                   props = event["ResourceProperties"]
 
-                  if delete_key(props["KeyName"], ec2, ssm):
+                  if delete_key(props["KeyName"], ec2):
                       cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
                   else:
                       print("DELETE request failed!")
@@ -598,7 +724,7 @@ Resources:
                   cfnresponse.send(event, context, cfnresponse.FAILED, responseData)
       Handler: index.lambda_handler
       Role: !GetAtt KeyPairCustomResourceFunctionRole.Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: '60'
   KeyPairCustomResourceFunctionRole:
     Type: AWS::IAM::Role
@@ -641,6 +767,7 @@ Resources:
       BackupRetentionPeriod: '35'
       PreferredBackupWindow: 08:00-11:00
       PreferredMaintenanceWindow: sun:11:00-sun:14:00
+      DeleteAutomatedBackups: true
       DBInstanceClass: !Ref RDSInstanceType
       DBSubnetGroupName: !Ref RDSSubnetGroup
       MasterUsername: !Ref MasterUser
