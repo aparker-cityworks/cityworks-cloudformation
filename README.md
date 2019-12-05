@@ -27,7 +27,8 @@ Finish the install by running DB Manager against the database.
 This should complete your Cityworks install and you can now browse the Public DNS name and access your /cityworks application.
 
 ## Additional Optional Tasks
-These are some additional things you can do to improve your deployemnt.
+These are some additional things you can do to improve your deployment.
+* Connect to the RDS instnace using SQL Managment Studio that is already installed on the Cityworks server.
 * Create a custom DNS CNAME record in your domain to point to the Public DNS name from the CityworksInstanceAddress value in the Outputs tab of CloudFormation.
 * Install an SSL certificate in IIS for custom DNS name and add a https binding in IIS so you can access the site over https using your domain name.
 * Restore an existing SQL bak file to your RDS instance. Follow the guide here https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/SQLServer.Procedural.Importing.html  Use the S3 bucket in the value of RDSS3Bucket in the Outputs tab of CloudFormation. The IAM Role and Option group described in the instructions were already created as part of the CloudFormation stack. You can also use the values of S3BucketAccessKeyId and S3BucketSecretAccessKey to access the S3 bucket.
