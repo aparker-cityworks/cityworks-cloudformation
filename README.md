@@ -7,22 +7,22 @@ A CloudFormation template that creates an infrastructure in which to deploy City
 First create an AWS account and login. Then click the Launch Stack button above. This will deploy a complete infrastructure that will support a Cityworks installation. It will create the network (VPC, Subnets etc), database server (RDS SQL server), and Cityworks app server (Windows Server w/IIS, .NET and Crystal Reports runtime).
 
 You can see the progress of the deployment by going to the CloudFormation section in the AWS Console. Once the status says CREATE_COMPLETE, the infrastructure has been deployed.
-[[img/cloudformation.png]]
+![](img/cloudformation.png)
 
 As part of the deployment process, an Automation document will be run to configure the Cityworks server by automatically installing the Cityworks prerequisites and creating an initial database on the RDS server. Go to the Systems Manager section in the AWS Console and click the Automation section. You can view the progress of the configuration as it runs. Once all the steps have completed, you can login to the server and install Cityworks.
-[[img/automation.png]]
+![](img/automation.png)
 
 Go to the CloudFormation section in the AWS Console and click on the Outputs tab of the stack we launched. This Outputs page contains a number of vital information that you will need to connect to and configure your environment.
-[[img/outputs.png]]
+![](img/outputs.png)
 
 Go to the EC2 section in the AWS Console. Right click on the Cityworks instance and click Get Windows Password. It will prompt for a private key value to decrypt the password. Copy the KeyPairPrivateKey value from the Outputs tab in CloudFormation, paste it in the box and click Decrypt Password. You will then see a Public DNS name and Admin credentials you can use to RDP into the Cityworks server.
-[[img/connectioninfo.png]]
+![](img/connectioninfo.png)
 
 Once you have connected to the server, download a Cityworks installer from MyCityworks and run it. Use the RDSInstanceAddress and AztecaPassword values from the Outputs tab in CloudFormation as the database connection info. Select the cityworks database from the drop down.
-[[img/install.png]]
+![](img/install.png)
 
 Finish the install by running DB Manager against the database.
-[[img/dbmanager.png]]
+![](img/dbmanager.png)
 
 This should complete your Cityworks install and you can now browse the Public DNS name and access your /cityworks application.
 
